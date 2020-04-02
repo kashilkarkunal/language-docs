@@ -2,6 +2,40 @@
 
 [TOC]
 
+## Setting Up Go Project
+
+A go project is organized into packages, which are a collection of source files within the same folder. These files are compiled together and the functions, variables and constants defined in the same package are visible to all other source files.
+
+A collection of packages is called a module. The module is declared in a go.mod file in that directory and all the files and sub-folders belong to this module, until a folder with its own go.mod file.
+
+Note that the module structure does not need to follow the directory structure but it is ideal if it does.
+
+```wiki
+Each module’s path not only serves as an import path prefix for its packages, but also indicates where the go command should look to download it. For example, in order to download the module golang.org/x/tools, the go command would consult the repository indicated by https://golang.org/x/tools (described more here). 
+
+An import path is a string used to import a package. A package’s import path is its module path joined with its subdirectory within the module. For example, the module github.com/google/go-cmp contains a package in the directory cmp/. That package’s import path is github.com/google/go-cmp/cmp. Packages in the standard library do not have a module path prefix. 
+```
+
+
+
+```bash
+$ mkdir hello # Alternatively, clone it if it already exists in version control.
+$ cd hello
+$ go mod init example.com/user/hello
+go: creating new go.mod: module example.com/user/hello
+$ cat go.mod
+module example.com/user/hello
+
+go 1.14
+$
+```
+
+
+
+```go
+go install .
+```
+
 
 
 ## Basics
@@ -145,6 +179,32 @@ func main() {
 }
 
 ```
+
+
+
+### Generating Random Numbers
+
+```go
+package main
+
+import (
+	"fmt"
+	"math/rand"
+)
+
+func main() {
+	// Seeding with the same value results in the same random sequence each run.
+	// For different numbers, seed with a different value, such as
+	// time.Now().UnixNano(), which yields a constantly-changing number.
+	rand.Seed(86)
+	fmt.Println(rand.Intn(100))
+	fmt.Println(rand.Intn(100))
+	fmt.Println(rand.Intn(100))
+
+}
+```
+
+
 
 
 
@@ -297,6 +357,70 @@ done
 1
 0
 ```
+
+## Functions
+
+A function can take zero or more arguments.   
+
+In this example, `add` takes two parameters of type `int`.   
+
+Notice that the type comes *after* the variable name.   
+
+```go
+package main
+
+import "fmt"
+
+func add(x int, y int) int {
+	return x + y
+}
+
+func main() {
+	fmt.Println(add(42, 13))
+}
+
+```
+
+When two or more consecutive named function parameters share a type, you can omit the type from all but the last.
+
+```go
+package main
+
+import "fmt"
+
+func add(x, y int) int {
+	return x + y
+}
+
+func main() {
+	fmt.Println(add(42, 13))
+}
+
+```
+
+A function can return any number of results.   
+
+The `swap` function returns two strings.   
+
+```go
+package main
+
+import "fmt"
+
+func swap(x, y string) (string, string) {
+	return y, x
+}
+
+func main() {
+	a, b := swap("hello", "world")
+	fmt.Println(a, b)
+}
+
+```
+
+
+
+
 
 ## Types
 
@@ -495,6 +619,7 @@ type Vertex struct {
 }
 
 // Struct Literals
+// Note the curly braces for initialization
 var (
 	v1 = Vertex{1, 2}  // has type Vertex
 	v2 = Vertex{Y: 3, X: 1}  // Y:0 is implicit
@@ -906,7 +1031,7 @@ The first parameter `s` of `append` is a slice of type `T`, and the rest are    
 
 The resulting value of `append` is a slice containing all the elements of the original slice plus the provided values.  
 
-**Note**: If the backing array of `s` is too small to fit all the given values a bigger    array will be allocated. The returned slice will point to the newly allocated    array. 
+**Note**: If the backing array of `s` is too small to fit all the given values a bigger array will be allocated. The returned slice will point to the newly allocated array. 
 
 ```go
 package main
@@ -1030,7 +1155,7 @@ func main() {
 
 #### Mutating Maps
 
-nsert or update an element in map `m`:  
+Insert or update an element in map `m`:  
 
 ```
 m[key] = elem
@@ -1096,6 +1221,16 @@ The value: 0
 The value: 0 Present? false
 ```
 
+#### Iterating Over Maps
+
+```go
+for k, v := range m { 
+    fmt.Printf("key[%s] value[%s]\n", k, v)
+}
+```
+
+
+
 ### Function Values
 
 Functions are values too. They can be passed around just like other values.  Function values may be used as function arguments and return values.
@@ -1160,6 +1295,128 @@ func main() {
 	}
 }
 ```
+
+## Restful APIs
+
+### Defining json keys for structs
+
+```go
+package models
+
+// You can use tilde's to define json keys that
+// are different from variable names in a struct
+type Flashcard struct {
+	VisibleCharacter string   `json:"visible"`
+	Answer           string   `json:"answer"`
+	Options          []string `json:"options"`
+}
+
+```
+
+
+
+### Using Mux to Route HTTP requests
+
+Package `gorilla/mux` implements a request router and dispatcher for matching incoming requests to
+their respective handler.
+
+https://github.com/gorilla/mux
+
+```go
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+
+	"github.com/gorilla/mux"
+)
+
+var esClient *elasticsearch.Client
+var esError error
+
+func main() {
+	r := mux.NewRouter()
+	r.HandleFunc("/flashcards", RequestHandler).Methods("GET")
+	log.Fatal(http.ListenAndServe(":8000", r))
+}
+
+func FlashcardsHandler(w http.ResponseWriter, r *http.Request) {
+    response = // Response for the HTTP request
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+```
+
+
+
+## Type assertions
+
+ For an expression `x` of [interface type](https://golang.org/ref/spec#Interface_types) and a type `T`, the primary expression 
+
+```go
+x.(T)
+```
+
+asserts that `x` is not `nil` and that the value stored in `x` is of type `T`. The notation `x.(T)` is called a *type assertion*. 
+
+More precisely, if `T` is not an interface type, `x.(T)` asserts that the dynamic type of `x` is [identical](https://golang.org/ref/spec#Type_identity) to the type `T`. In this case, `T` must [implement](https://golang.org/ref/spec#Method_sets) the (interface) type of `x`; otherwise the type assertion is invalid since it is not possible for `x` to store a value of type `T`. If `T` is an interface type, `x.(T)` asserts that the dynamic type of `x` implements the interface `T`. 
+
+If the type assertion holds, the value of the expression is the value stored in `x` and its type is `T`. If the type assertion is false, a [run-time panic](https://golang.org/ref/spec#Run_time_panics) occurs. In other words, even though the dynamic type of `x` is known only at run time, the type of `x.(T)` is known to be `T` in a correct program. 
+
+```go
+var x interface{} = 7          // x has dynamic type int and value 7
+i := x.(int)                   // i has type int and value 7
+
+type I interface { m() }
+
+func f(y I) {
+	s := y.(string)        // illegal: string does not implement I (missing method m)
+	r := y.(io.Reader)     // r has type io.Reader and the dynamic type of y must implement both I and io.Reader
+	…
+}
+```
+
+ A type assertion used in an [assignment](https://golang.org/ref/spec#Assignments) or initialization of the special form 
+
+```
+v, ok = x.(T)
+v, ok := x.(T)
+var v, ok = x.(T)
+var v, ok T1 = x.(T)
+```
+
+ yields an additional untyped boolean value. The value of `ok` is `true` if the assertion holds. Otherwise it is `false` and the value of `v` is the [zero value](https://golang.org/ref/spec#The_zero_value) for type `T`. No [run-time panic](https://golang.org/ref/spec#Run_time_panics) occurs in this case. 
+
+
+
+## Testing in Golang
+
+ Package testing provides support for automated testing of Go packages. It is intended to be used in concert with the “go test” command, which automates execution of any function of the form 
+
+```
+func TestXxx(*testing.T)
+```
+
+ where Xxx does not start with a lowercase letter. The function name serves to identify the test routine. 
+
+ Within these functions, use the Error, Fail or related methods to signal failure. 
+
+ To write a new test suite, create a file whose name ends _test.go that contains the TestXxx functions as described here. Put the file in the same package as the one being tested. The file will be excluded from regular package builds but will be included when the “go test” command is run. For more detail, run “go help test” and “go help testflag”. 
+
+ A simple test function looks like this: 
+
+```go
+func TestAbs(t *testing.T) {
+    got := Abs(-1)
+    if got != 1 {
+        t.Errorf("Abs(-1) = %d; want 1", got)
+    }
+}
+```
+
+
 
 ## Methods
 
